@@ -1,0 +1,6 @@
+# TODO Configure firewall
+# nfs
+
+- name: Temporary disable firewall
+  community.general.ufw:
+    state: disabled

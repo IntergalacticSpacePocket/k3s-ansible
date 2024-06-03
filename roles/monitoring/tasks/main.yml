@@ -1,0 +1,68 @@
+# see https://technotim.live/posts/kube-grafana-prometheus/
+
+#  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+- name: Add prometheus-community helm repo
+  kubernetes.core.helm_repository:
+    name: prometheus-community
+    repo_url: https://prometheus-community.github.io/helm-charts
+
+#  helm repo update
+- name: repo update
+#  kubernetes.core.helm: # <--- werkt niet!!!
+#    name: dummy # dummy value
+#    namespace: kube-system # dummy value
+#    state: absent # make sure it is not used
+#    update_repo_cache: yes
+  ansible.builtin.shell: helm repo update
+
+- name: Create metrics namespace
+  kubernetes.core.k8s:
+    name: monitoring
+    kind: Namespace
+    state: present
+
+  #helm install -n monitoring prometheus prometheus-community/kube-prometheus-stack -f values.yaml
+- name: Deploy prometheus and grafana
+  kubernetes.core.helm:
+    name: prometheus
+    chart_ref: prometheus-community/kube-prometheus-stack
+    release_namespace: monitoring
+    values: "{{ lookup('template', 'values.yml.j2') | from_yaml }}"
+
+- name: Create Grafana Secret
+  kubernetes.core.k8s:
+    state: present
+    apply: true
+#    definition: "{{ lookup('template', 'grafana-secret.yml.j2') | from_yaml }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: grafana-admin-credentials
+        namespace: monitoring
+      data:
+        admin-password: "{{ grafana_admin_pass | b64encode }}"
+        admin-user: "{{ grafana_admin_user | b64encode }}"
+      type: Opaque
+  
+- name: Create SSL secret for monitoring subdomain
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      type: Opaque
+      metadata:
+        name: "monitoring-vip-secret"
+        namespace: "monitoring"
+      data:
+        tls.crt: "{{ k3s_monitoring_cert_crt | b64encode }}"
+        tls.key: "{{ k3s_monitoring_cert_key | b64encode }}"
+
+- name: Create Ingress Route
+  kubernetes.core.k8s:
+    state: present
+    apply: true
+    definition: "{{ lookup('template', 'monitoring-route.yml.j2') | from_yaml }}"
+
+

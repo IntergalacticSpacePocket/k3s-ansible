@@ -1,0 +1,67 @@
+# The commands in this script must be delegated to localhost. (Uses the localhost kubectl to deploy traefik).
+
+- name: Create traefik namespace
+  kubernetes.core.k8s:
+    name: traefik
+    kind: Namespace
+    state: present
+
+#helm install --namespace=traefik traefik traefik/traefik --values=roles/k3s/traefik/files/values.yml
+- name: Deploy traefik
+  kubernetes.core.helm:
+    name: traefik
+    chart_ref: traefik/traefik
+    release_namespace: traefik
+    values: "{{ lookup('template', 'values.yml.j2') | from_yaml }}"
+
+#kubectl apply -f roles/k3s/traefik/files/default-headers.yml
+- name: Apply default traefik headers
+  kubernetes.core.k8s:
+    state: present
+    apply: true
+    src: default-headers.yml
+
+# Test if traefik works
+
+#- name: Testing traefik config - Create namespace www
+#  kubernetes.core.k8s:
+#    name: www
+#    kind: Namespace
+#    state: present
+
+#  kubectl create secret tls apps-vip-secret --cert=apps.k3s-stg.corp.igsp.rocks.crt --key=apps.k3s-stg.corp.igsp.rocks.key -n www
+#- name: Testing traefik config - Create SSL secret for apps subdomain
+#  kubernetes.core.k8s:
+#    state: present
+#    definition:
+#      apiVersion: v1
+#      kind: Secret
+#      type: Opaque
+#      metadata:
+#        name: "apps-vip-secret"
+#        namespace: "www"
+#      data:
+#        tls.crt: "{{ k3s_app_cert_crt | b64encode }}"
+#        tls.key: "{{ k3s_app_cert_key | b64encode }}"
+
+#- name: Testing traefik config - Deploy Nginx
+#  kubernetes.core.k8s:
+#    state: present
+#    apply: true
+#    src: nginx.yml
+#
+#- name: Testing traefik config - Deploy Nginx service
+#  kubernetes.core.k8s:
+#    state: present
+#    apply: true
+#    src: nginx-service.yml
+#
+#- name: Testing traefik config - Deploy Nginx ingress
+#  kubernetes.core.k8s:
+#    state: present
+#    apply: true
+#    src: nginx-ingress.yml
+
+# TODO wait for nginx test service to come up
+# TODO curl nginx test service
+# TODO remove nginx test service

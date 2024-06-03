@@ -1,0 +1,12 @@
+- name: Create a new ext4 primary partition if not exists
+  community.general.parted:
+    device: /dev/sdb # data disk should be on sdb
+    number: 1
+    state: present
+    fs_type: ext4
+    part_end: "100%"
+
+- name: Create a ext4 filesystem if not exists
+  community.general.filesystem:
+    fstype: ext4
+    dev: /dev/sdb1

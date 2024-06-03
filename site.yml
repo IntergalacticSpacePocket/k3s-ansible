@@ -1,0 +1,107 @@
+- name: Stop if group_vars is not defined properly
+  hosts: master
+  any_errors_fatal: true
+  become: true
+  tasks:
+    - ansible.builtin.fail: msg="Configuration error. group_vars not loaded."
+      when: k3s_version is not defined
+
+- hosts: all
+  any_errors_fatal: true
+  become: true
+  vars:
+    common_roles: "{{ lookup('ansible.builtin.env', 'ANSIBLE_PLAY_COMMON') }}/roles"
+  roles:
+    - '{{common_roles}}/proxy-client'
+    - '{{common_roles}}/bootstrap'
+    - '{{common_roles}}/install-root-certs'
+
+- hosts: storage
+  any_errors_fatal: true
+  become: true
+  roles:
+    - storage
+
+- name: Prepare cluster nodes
+  hosts: k3s_cluster
+  any_errors_fatal: true
+  become: true
+  roles:
+    - role: node
+
+- hosts: master
+  any_errors_fatal: true
+  become: true
+  vars:
+    storagenode: "{{ groups['storage'][0] }}"
+  roles:
+    - master
+    - nfs-storage-class
+
+- hosts: worker
+  any_errors_fatal: true
+  become: true
+  vars:
+    storagenode: "{{ groups['storage'][0] }}"
+  roles:
+    - worker
+    - nfs-storage-class
+
+- name: Master post configuration
+  hosts: master
+  any_errors_fatal: true
+  become: true
+  roles:
+    - role: master-post
+
+- name: Storing kubeconfig in the playbook directory
+  hosts: master
+  any_errors_fatal: true
+  become: true
+  tasks:
+    - name: Copying kubeconfig from {{ hostvars[groups[group_name_master | default('master')][0]]['ansible_hostname'] }}
+      ansible.builtin.fetch:
+        src: "{{ ansible_user_dir }}/.kube/config"
+        dest: ./kubeconfig
+        flat: true
+      when: ansible_hostname == hostvars[groups[group_name_master | default('master')][0]]['ansible_hostname']
+
+# From this point forward, localhost can talk to the API server (e.g. by kubectl)
+
+- name: Deploy traefik
+  hosts: master[0] # Do not use localhost here: The group variables will not be loaded
+  any_errors_fatal: true
+  environment:
+    K8S_AUTH_KUBECONFIG: ./kubeconfig
+  roles:
+    - role: traefik
+      delegate_to: localhost
+
+- name: Deploy dashboard
+  hosts: master[0] # Do not use localhost here: The group variables will not be loaded
+  any_errors_fatal: true
+  environment:
+    K8S_AUTH_KUBECONFIG: ./kubeconfig
+  roles:
+    - role: dashboard
+      delegate_to: localhost
+
+- name: Deploy monitoring
+  hosts: master[0] # Do not use localhost here: The group variables will not be loaded
+  any_errors_fatal: true
+  environment:
+    K8S_AUTH_KUBECONFIG: ./kubeconfig
+  roles:
+    - role: monitoring
+      delegate_to: localhost
+
+- name: Deploy logging
+  hosts: master[0] # Do not use localhost here: The group variables will not be loaded
+  any_errors_fatal: true
+  environment:
+    K8S_AUTH_KUBECONFIG: ./kubeconfig
+  roles:
+    - role: logging
+      delegate_to: localhost
+
+# TODO Create snapshot of cluster

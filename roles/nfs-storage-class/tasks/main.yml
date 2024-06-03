@@ -1,0 +1,58 @@
+# https://www.phillipsj.net/posts/k3s-enable-nfs-storage/
+
+- name: Print vars of all VMs
+  ansible.builtin.debug:
+    msg: "{{storagenode}}"
+
+- ansible.builtin.fail: msg="Bailing out. This play requires 'storagenode' to be set"
+  when: storagenode is not defined
+
+- name: Install NFS client
+  apt:
+    pkg:
+      - nfs-common
+    state: present
+
+#
+# Start test if connection with NFS server
+#
+- name: Create a directory if it does not exist
+  ansible.builtin.file:
+    path: /tmp/nfscheck
+    state: directory
+    mode: '0755'
+
+- name: Preparing NFS Test - Mount NFS pv share
+  ansible.posix.mount:
+    src: "{{ storagenode }}:/exports/pv"
+    path: /tmp/nfscheck
+    state: ephemeral
+    fstype: nfs
+
+- name: Test NFS connection
+  ansible.builtin.stat:
+    path: /tmp/nfscheck
+
+- name: Unmount NFS
+  ansible.posix.mount:
+    path: /tmp/nfscheck
+    state: unmounted
+
+#
+# End test if connection with NFS server
+#
+
+# Run task only on first host in group
+- name: Deploy NFS provisioner
+  template:
+    src: "{{role_path}}/templates/nfs.yml.j2"
+    dest: /var/lib/rancher/k3s/server/manifests/nfs.yaml
+  when: inventory_hostname == groups['master'][0]
+
+# TODO wait until storage class available
+#  kubectl get storageclasses
+
+# TODO do a test claim
+#  kubectl apply -f pvc.yaml
+# kubectl get pvc nfsclaim
+

@@ -1,0 +1,1 @@
+https://www.reddit.com/r/homelab/comments/mvjc0f/metallb_and_traefik_for_a_home_kubernetes_cluster/

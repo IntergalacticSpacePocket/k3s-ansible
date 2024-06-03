@@ -1,0 +1,35 @@
+- hosts: all
+  become: false
+  gather_facts: no
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  tasks:
+    - name: Wait for vm to become available
+      ansible.builtin.wait_for_connection:
+        timeout: 10
+      retries: 5
+      delay: 10
+      register: outcome
+      until: not outcome.failed
+
+    - debug:
+        msg: "Host {{ inventory_hostname }} is unreachable"
+      when: outcome.failed
+
+    # TODO check if keys are changed and aks for permission
+    - name: Test if host keys are registered
+      connection: local
+      shell: "ssh-keygen -F {{ inventory_hostname }}"
+      register: outcome
+
+    - debug:
+        msg: "Host keys registered. Needs replacing..."
+      when: "'found' in outcome.stdout"
+
+    - name: Unregister existing host keys
+      connection: local
+      shell: "ssh-keygen -R {{ inventory_hostname }}"
+
+    - name: Register the SSH host key
+      connection: local
+      shell: "ssh-keyscan -H {{ inventory_hostname }} >> ~/.ssh/known_hosts"

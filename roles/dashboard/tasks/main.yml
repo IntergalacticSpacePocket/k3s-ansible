@@ -1,0 +1,55 @@
+# The commands in this script must be delegated to localhost. (Uses the localhost kubectl to deploy the dashboard).
+
+- name: Download kubernetes dashboard
+  ansible.builtin.get_url:
+    url:  https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+    dest: /tmp/dashboard-recommended.yml
+    force: true
+
+#kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+- name: Deploy dashboard
+  kubernetes.core.k8s:
+    state: present
+    apply: true
+    src: /tmp/dashboard-recommended.yml
+
+#kubectl create -f roles/k3s/dashboard/files/dashboard.admin-user.yml -f roles/k3s/dashboard/files/dashboard.admin-user-role.yml
+- name: Create admin user
+  kubernetes.core.k8s:
+    state: present
+    apply: true
+    src: dashboard.admin-user.yml
+
+- name: Create admin user role
+  kubernetes.core.k8s:
+    state: present
+    apply: true
+    src: dashboard.admin-user-role.yml
+
+- name: Create SSL secret for dashboard subdomain
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      type: Opaque
+      metadata:
+        name: "dashboard-vip-secret"
+        namespace: "kubernetes-dashboard"
+      data:
+        tls.crt: "{{ k3s_dashboard_cert_crt | b64encode }}"
+        tls.key: "{{ k3s_dashboard_cert_key | b64encode }}"
+
+- name: Create Ingress Route
+  kubernetes.core.k8s:
+    state: present
+    apply: true
+    definition: "{{ lookup('template', 'dashboard-route.yml.j2') | from_yaml }}"
+
+
+# cleanup
+# TODO Use Ansible temp utilities
+- name: Cleanup
+  ansible.builtin.file:
+    path: /tmp/dashboard-recommended.yml
+    state: absent

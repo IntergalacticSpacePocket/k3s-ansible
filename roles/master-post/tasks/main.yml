@@ -1,0 +1,15 @@
+---
+- name: Deploy calico
+  include_tasks: calico.yml
+  tags: calico
+  when: calico_iface is defined
+
+- name: Deploy metallb pool
+  include_tasks: metallb.yml
+  tags: metallb
+  when: kube_vip_lb_ip_range is not defined
+
+- name: Remove tmp directory used for manifests
+  file:
+    path: /tmp/k3s
+    state: absent

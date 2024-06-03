@@ -1,0 +1,25 @@
+all:
+  children:
+    storage:
+      hosts:
+        k3s-dev-storage:
+    master:
+      hosts:
+        k3s-dev-m1:
+        k3s-dev-m2:
+        k3s-dev-m3:
+    worker:
+      hosts:
+        k3s-dev-w1:
+        k3s-dev-w2:
+    k3s_cluster: # This causes groups_vars/k3s_cluster.yml to be loaded
+      children:
+        master:
+        worker:
+    k3s_dev_cluster: # This causes groups_vars/k3s_dev_cluster/*.yml to be loaded
+      children:
+        master:
+        worker:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_ssh_user: ubuntu # default user for ubuntu cloud-init templates

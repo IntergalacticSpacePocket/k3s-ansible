@@ -1,0 +1,30 @@
+
+- name: Create the exports directory if it does not exist
+  ansible.builtin.file:
+    path: /exports
+    state: directory
+    mode: '0755'
+
+- name: Permanent mount data disk to exports
+  ansible.posix.mount:
+    path: /exports
+    src: /dev/sdb1
+    fstype: ext4
+    state: mounted
+
+- name: Copy NFS config
+  copy:
+    src: exports
+    dest: /etc/exports
+
+- name: Create Persistent Volume Claim folder
+  ansible.builtin.file:
+    path: /exports/pv
+    state: directory
+
+# TODO is  hier geen ansible module voor ???
+- name: Reload NFS configuration
+  ansible.builtin.shell:
+    cmd: exportfs -a
+
+

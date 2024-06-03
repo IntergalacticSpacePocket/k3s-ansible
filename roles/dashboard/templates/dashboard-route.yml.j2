@@ -1,0 +1,19 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: dashboard-ingress
+  namespace: kubernetes-dashboard
+  annotations:
+    kubernetes.io/ingress.class: traefik-external
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`{{ cluster_dashboard_route_url }}`)
+      kind: Rule
+      services:
+        - name: kubernetes-dashboard
+          port: 443
+  tls:
+    secretName: dashboard-vip-secret
+

@@ -1,0 +1,7 @@
+# TODO get from inventory instead
+masternodes:
+  - 172.19.48.141 #k3s-dev-m1
+  - 172.19.48.142 #k3s-dev-m2
+  - 172.19.48.143 #k3s-dev-m3
+
+cluster_monitoring_route_url: monitoring.mycluster.mydomain.com

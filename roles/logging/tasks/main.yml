@@ -1,0 +1,39 @@
+# https://grafana.com/docs/loki/latest/setup/install/
+# https://www.reddit.com/r/kubernetes/comments/y3ze83/lightweight_logging_tool_for_k3s_cluster_with/?rdt=50546
+
+#helm install --values values.yaml loki grafana/loki
+- name: Create metrics namespace
+  kubernetes.core.k8s:
+    name: logging
+    kind: Namespace
+    state: present
+
+#  helm repo add grafana https://grafana.github.io/helm-charts
+- name: Add prometheus-community helm repo
+  kubernetes.core.helm_repository:
+    name: grafana
+    repo_url: https://grafana.github.io/helm-charts
+
+#  helm repo update
+- name: repo update
+  #  kubernetes.core.helm: # <--- werkt niet!!!
+  #    name: dummy # dummy value
+  #    namespace: kube-system # dummy value
+  #    state: absent # make sure it is not used
+  #    update_repo_cache: yes
+  ansible.builtin.shell: helm repo update
+
+#helm upgrade --install loki --namespace=logging grafana/loki-stack --set loki.image.tag=2.9.3
+- name: Deploy grafana/loki
+  kubernetes.core.helm:
+    name: loki
+    chart_ref: grafana/loki-stack
+    release_namespace: logging
+    values: "{{ lookup('file', 'values.yml') | from_yaml }}"
+    set_values:
+      - value: loki.image.tag=2.9.3
+        value_type: string
+
+
+
+

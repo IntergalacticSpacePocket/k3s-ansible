@@ -1,0 +1,35 @@
+- name: Install NFS server
+  apt:
+    pkg:
+      - nfs-kernel-server
+    state: present
+
+- name: For port based firewalls bind NFS to a single port.
+  replace:
+    dest: /etc/default/nfs-kernel-server
+    regexp: '^RPCMOUNTDOPTS="--manage-gids"$'
+    replace: '# RPCMOUNTDOPTS="--manage-gids"'
+
+
+- name: Bind NDS to a single port
+  ansible.builtin.lineinfile:
+    path: /etc/default/nfs-kernel-server
+    line: 'RPCMOUNTDOPTS="-p 13025"'
+
+- name: Start NFS server
+  service:
+    name: nfs-kernel-server
+    state: started
+
+- name: Allow NFS traffic
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+  with_items:
+    - { port: 111, proto: "tcp" }
+    - { port: 111, proto: "udp" }
+    - { port: 2049, proto: "tcp" }
+    - { port: 2049, proto: "udp" }
+    - { port: 13025, proto: "tcp" }
+    - { port: 13025, proto: "udp" }
